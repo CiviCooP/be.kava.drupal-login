@@ -1,0 +1,6 @@
+name = KAVA CAS Login
+description = Adds CiviCRM <-> CAS login integration
+core = 7.x
+package = CiviCRM
+dependencies[] = civicrm (>=4.4)
+dependencies[] = cas

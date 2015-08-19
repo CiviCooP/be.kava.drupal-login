@@ -1,0 +1,23 @@
+<?php
+/**
+ * kavalogin.module - KAVA Login: adds CiviCRM <-> CAS login integration
+ */
+
+/**
+ * Test to view CAS user object
+ * @param array $cas_user Array containing name/login/register/attributes as keys. See cas.api.php.
+ */
+function kavalogin_cas_user_alter(&$cas_user) {
+
+//    drupal_set_message('cas_user_alter: ' . print_r($cas_user, true) . ' test attributes' . print_r(cas_phpcas_attributes($cas_user['name']), true), 'status');
+}
+
+/**
+ * Adds CiviCRM link for the Drupal user that is being created
+ * @param array $edit An array of values corresponding to the Drupal user to be created.
+ * @param object $account A Drupal user object
+ */
+function kavalogin_cas_user_presave(&$edit, $account) {
+
+//    drupal_set_message('cas_user_presave: edit ' . print_r($edit, true) . ' account ' . print_r($account, true), 'status');
+}
