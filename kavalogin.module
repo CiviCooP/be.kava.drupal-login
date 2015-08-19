@@ -1,23 +1,20 @@
 <?php
-/**
- * kavalogin.module - KAVA Login: adds CiviCRM <-> CAS login integration
- */
+/** kavalogin.module - KAVA Login: adds CiviCRM <-> CAS login integration **/
 
 /**
- * Test to view CAS user object
- * @param array $cas_user Array containing name/login/register/attributes as keys. See cas.api.php.
+ * User insert hook. Runs after CAS, but before CiviCRM.
+ * We're creating the UFMatch manually here before CiviCRM starts synchronizing user data.
  */
-function kavalogin_cas_user_alter(&$cas_user) {
+function kavalogin_user_insert(&$edit, $account, $category) {
 
-//    drupal_set_message('cas_user_alter: ' . print_r($cas_user, true) . ' test attributes' . print_r(cas_phpcas_attributes($cas_user['name']), true), 'status');
+  return KAVALoginHandler::getInstance()->match($account);
 }
 
 /**
- * Adds CiviCRM link for the Drupal user that is being created
- * @param array $edit An array of values corresponding to the Drupal user to be created.
- * @param object $account A Drupal user object
+ * User login hook. Runs after CAS (so we don't need cas_user_alter, etc), but before CiviCRM.
+ * Check if a UFMatch exists and if not, if we can add one now.
  */
-function kavalogin_cas_user_presave(&$edit, $account) {
+function kavalogin_user_login(&$edit, $account, $category) {
 
-//    drupal_set_message('cas_user_presave: edit ' . print_r($edit, true) . ' account ' . print_r($account, true), 'status');
+  return KAVALoginHandler::getInstance()->match($account);
 }

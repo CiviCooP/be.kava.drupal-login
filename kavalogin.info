@@ -4,3 +4,5 @@ core = 7.x
 package = CiviCRM
 dependencies[] = civicrm (>=4.4)
 dependencies[] = cas
+files[] = kavalogin.module
+files[] = kavaloginhandler.php

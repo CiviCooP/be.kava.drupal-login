@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * Make sure this module's hooks are run _after_ the CAS module, but _before_ CiviCRM user hooks.
+ */
+function kavalogin_install() {
+  db_update('system')
+    ->fields(array('weight' => -12))
+    ->condition('name', 'cas', '=')
+    ->execute();
+  db_update('system')
+    ->fields(array('weight' => -11))
+    ->condition('name', 'kavalogin', '=')
+    ->execute();
+}
