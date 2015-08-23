@@ -2,6 +2,7 @@
 
 /**
  * Make sure this module's hooks are run _after_ the CAS module, but _before_ CiviCRM user hooks.
+ * (relevant for kavalogin_user_insert)
  */
 function kavalogin_install() {
   db_update('system')
