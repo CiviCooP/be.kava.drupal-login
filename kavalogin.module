@@ -65,30 +65,35 @@ function kavalogin_register_form($form, &$form_state) {
     '#type'          => 'textfield',
     '#title'         => t('Voornaam'),
     '#default_value' => $form_state['values']['first_name'],
+    '#required'      => TRUE,
   ];
 
   $form['last_name'] = [
     '#type'          => 'textfield',
     '#title'         => t('Achternaam'),
     '#default_value' => $form_state['values']['last_name'],
+    '#required'      => TRUE,
   ];
 
   $form['street_address'] = [
     '#type'          => 'textfield',
     '#title'         => t('Straat en huisnummer'),
     '#default_value' => $form_state['values']['street_address'],
+    '#required'      => TRUE,
   ];
 
   $form['postal_code'] = [
     '#type'          => 'textfield',
     '#title'         => t('Postcode'),
     '#default_value' => $form_state['values']['postal_code'],
+    '#required'      => TRUE,
   ];
 
   $form['city'] = [
     '#type'          => 'textfield',
     '#title'         => t('Plaats'),
     '#default_value' => $form_state['values']['city'],
+    '#required'      => TRUE,
   ];
 
   $kcivicrm = KAVALogin_CiviCRM::getInstance();
@@ -98,18 +103,21 @@ function kavalogin_register_form($form, &$form_state) {
     '#title'         => t('Land'),
     '#default_value' => $defaultCountry,
     '#options'       => $kcivicrm->getCountries(),
+    '#required'      => TRUE,
   ];
 
   $form['phone'] = [
     '#type'          => 'textfield',
     '#title'         => t('Telefoon'),
     '#default_value' => $form_state['values']['phone'],
+    '#required'      => TRUE,
   ];
 
   $form['email'] = [
     '#type'          => 'textfield',
     '#title'         => t('E-mailadres'),
     '#default_value' => $form_state['values']['email'],
+    '#required'      => TRUE,
   ];
 
   $form['submit'] = [
@@ -297,33 +305,6 @@ function kavalogin_admin_form() {
   ];
 
   return system_settings_form($form);
-}
-
-/**
- * Save an action to the session to be picked up by another hook.
- * @param string $action Action
- * @param object|null $contact CiviCRM Contact
- */
-function kavalogin_set_action($action, $contact = NULL) {
-  $_SESSION['kavalogin'] = [
-    'action'  => $action,
-    'contact' => $contact,
-  ];
-}
-
-/**
- * Get action from session, if there is one.
- * @return array|null Session data
- */
-function kavalogin_get_action() {
-  return (isset($_SESSION['kavalogin']) ? $_SESSION['kavalogin'] : []);
-}
-
-/**
- * Clear session action.
- */
-function kavalogin_clear_action() {
-  $_SESSION['kavalogin'] = NULL;
 }
 
 /**
