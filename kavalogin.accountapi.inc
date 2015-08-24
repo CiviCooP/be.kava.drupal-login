@@ -21,45 +21,33 @@ class KAVALogin_AccountAPI {
   }
 
   /**
-   * Creates a new CAS account for a new user
+   * Call the KAVA account API. Will check if a user exists and if not, automatically create a user account.
    * @param string $email Email Address
    * @param string $firstName First Name
    * @param string $lastName Last Name
    * @return mixed|bool Result or success
    */
-  public function createAccount($email, $firstName = '', $lastName = '') {
+  public function callAccountAPI($email, $firstName = '', $lastName = '') {
 
-    $apiUrl = $this->getApiUrl('create', ['email' => $email, 'naam' => $lastName, 'voornaam' => $firstName]);
+    $apiUrl = $this->getApiUrl('create', [
+      'email'    => $email,
+      'naam'     => strtoupper($lastName),
+      'voornaam' => strtoupper($firstName),
+    ]);
 
-    if(!$apiUrl) {
-      kavalogin_log('Can\'t create account: invalid or incomplete parameters.', WATCHDOG_ERROR);
+    $ret = drupal_http_request($apiUrl);
+    kavalogin_log("Calling API: " . $apiUrl . ".\nResult: HTTP " . $ret->code . ": " . print_r($ret->data, TRUE), false, WATCHDOG_INFO);
+
+    if(!$ret || $ret->code != 200 || !$ret->data) {
       return false;
     }
 
-    $ret = drupal_http_request($apiUrl);
-    drupal_set_message('Calling API: ' . $apiUrl . '.<br>Result: HTTP ' . $ret->code . ': ' . print_r($ret->data, true), 'warning');
-
-    return $ret;
-  }
-
-  /**
-   * Creates a new CAS account for an existing CRM contact
-   * @param string $barcode Barcode
-   * @return mixed|bool Result or success
-   */
-  public function createAccountForContact($barcode) {
-
-    $apiUrl = $this->getApiUrl('account', ['barcode' => $barcode]);
-
-    if(!$apiUrl) {
-      kavalogin_log('Can\'t create account: invalid or incomplete parameters.', WATCHDOG_ERROR);
+    $data = json_decode($ret->data);
+    if(!$data) {
       return false;
     }
 
-    $ret = drupal_http_request($apiUrl);
-    drupal_set_message('Calling API: ' . $apiUrl . '.<br>Result: HTTP ' . $ret->code . ': ' . print_r($ret->data, true), 'warning');
-
-    return $ret;
+    return $data;
   }
 
   /**
@@ -69,55 +57,33 @@ class KAVALogin_AccountAPI {
    * @return bool|string URL or false
    * @throws \Exception If API url or key is not set
    */
-  private function getApiUrl($action, $params = []) {
+  private function getApiUrl($action = 'create', $params = []) {
 
     $apiUrl = variable_get('kavalogin_apiurl');
     $apiKey = variable_get('kavalogin_apikey');
-    if(!$apiUrl || !$apiKey) {
+    if (!$apiUrl || !$apiKey) {
       throw new \Exception('KAVA account API url and key not set.');
     }
 
-    if(substr($apiUrl, -1) != '/') {
+    if (substr($apiUrl, -1) != '/') {
       $apiUrl .= '/';
     }
 
-    switch($action) {
-
-      case 'create':
-        // create?naam=...&voornaam=...&email=...&signature=<email+key>
-        if(!isset($params['email'])) {
-          return false;
-        }
-        $params['signature'] = md5($apiKey . $params['email']);
-        break;
-
-      case 'account':
-        // account?barcode=...&signature=<barcode+key>
-        if(!isset($params['barcode'])) {
-          return false;
-        }
-        $params['signature'] = md5($apiKey . $params['barcode']);
-        break;
-
-      default:
-        // Pass on without checks or changes
+    if (empty($params['email'])) {
+      throw new \Exception('KAVA account API: no email address provided.');
     }
 
-    $apiUrl .= $action . '?' . http_build_query($params);
+    $params['signature'] = md5($apiKey . $params['email']);
+
+    // Generate API URL. URL encoding voor email wordt niet ondersteund... dus geen http_build_query
+    $apiUrl .= $action . '?';
+    foreach ($params as $key => $value) {
+      if ($key != 'email') {
+        $value = rawurlencode($value);
+      }
+      $apiUrl .= $key . '=' . $value . '&';
+    }
     return $apiUrl;
-  }
-
-  /**
-   * Log helper function (shortcut for watchdog / drupal_set_message)
-   * @param string $message Message
-   * @param bool|FALSE $display Display message
-   * @param int $severity Severity (WATCHDOG_*)
-   */
-  private function log($message, $display = FALSE, $severity = WATCHDOG_WARNING) {
-    if ($display) {
-      drupal_set_message('KAVALogin: ' . $message, 'warning');
-    }
-    watchdog('kavalogin', $message, [], $severity);
   }
 
 }

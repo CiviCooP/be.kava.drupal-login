@@ -70,27 +70,6 @@ class KAVALogin_CiviCRM {
   }
 
   /**
-   * Adds a new CAS username to an existing CiviCRM contact.
-   * @param int $contact_id Contact ID
-   * @param string $username Username
-   * @return bool Success
-   */
-  public function addUsernameToContact($contact_id, $username) {
-
-    $customField = 'custom_' . $this->getCustomFieldId('contact_extra', 'KAVA_account_login');
-    try {
-      $ret = civicrm_api3('Contact', 'create', [
-        'id'         => $contact_id,
-        $customField => $username,
-      ]);
-      return ($ret && !$ret['is_error']);
-    } catch (CiviCRM_API3_Exception $e) {
-      kavalogin_log('Could not add KAVA account login to CiviCRM contact (' . $e->getMessage() . ')');
-      return FALSE;
-    }
-  }
-
-  /**
    * Try to get a CiviCRM contact by his/her CAS login name (custom field KAVA_account_login)
    * @param string $username Username
    * @return array|bool Contact|false
@@ -98,6 +77,16 @@ class KAVALogin_CiviCRM {
   public function getCiviContactByLoginName($username) {
 
     return $this->getCiviContact('kava_account_login', $username);
+  }
+
+  /**
+   * Try to get a CiviCRM contact by his/her barcode (custom field barcode
+   * @param string $username Username
+   * @return array|bool Contact|false
+   */
+  public function getCiviContactByBarcode($barcode) {
+
+    return $this->getCiviContact('barcode', $barcode);
   }
 
   /**
@@ -217,7 +206,7 @@ class KAVALogin_CiviCRM {
    */
   public function addUpdateContact($params = []) {
 
-    kavalogin_log('Adding CiviCRM contact. Params: ' . print_r($params, TRUE), FALSE, WATCHDOG_INFO);
+    kavalogin_log('Adding/updating CiviCRM contact. Params: ' . print_r($params, TRUE), FALSE, WATCHDOG_INFO);
 
     try {
 
@@ -247,7 +236,7 @@ class KAVALogin_CiviCRM {
           'street_address'   => $params['street_address'],
           'postal_code'      => $params['postal_code'],
           'city'             => $params['city'],
-          'country_id'       => $params['country_id'],
+          'country_id'       => (!empty($params['country_id']) ? $params['country_id'] : $this->getDefaultCountry()),
         ];
       }
 
@@ -267,7 +256,11 @@ class KAVALogin_CiviCRM {
       }
 
       $ret = civicrm_api3('Contact', 'create', $contactParams);
-      return ($ret && !$ret['is_error']);
+      if ($ret && !$ret['is_error']) {
+        return $ret['id'];
+      }
+
+      return FALSE;
 
     } catch (\CiviCRM_API3_Exception $e) {
       kavalogin_log('CiviCRM API error: ' . $e->getMessage());
@@ -277,7 +270,7 @@ class KAVALogin_CiviCRM {
 
   /**
    * Add a Drupal user. (Calls cas_user_register function.)
-   * @param array $params Account params
+   * @param array $params Account params (username and email)
    * @return mixed|bool Account or false
    */
   public function addDrupalUser($params = []) {
@@ -299,6 +292,36 @@ class KAVALogin_CiviCRM {
     $config->inCiviCRM = FALSE;
 
     return $account;
+  }
+
+  /**
+   * Get contact data field by Drupal user id
+   * @param int $uid Drupal UID
+   * @param string $fieldName Field name
+   * @return mixed Field value or false
+   */
+  public function getFieldForDrupalUser($uid, $fieldName) {
+
+    $ufmatch = $this->getUFMatch($uid);
+    if (!$ufmatch) {
+      return FALSE;
+    }
+
+    if ($fieldName == 'username') {
+      $fieldName = 'custom_' . $this->getCustomFieldId('contact_extra', 'KAVA_account_login');
+    }
+    elseif ($fieldName == 'barcode') {
+      $fieldName = 'custom_' . $this->getCustomFieldId('contact_extra', 'barcode');
+    }
+
+    try {
+      return civicrm_api3('Contact', 'getvalue', [
+        'contact_id' => $ufmatch['contact_id'],
+        'return'     => $fieldName,
+      ]);
+    } catch (\CiviCRM_API3_Exception $e) {
+      return FALSE;
+    }
   }
 
   /**
@@ -346,6 +369,11 @@ class KAVALogin_CiviCRM {
     return $groupId;
   }
 
+  /**
+   * Get country list from CiviCRM
+   * @return array API result
+   * @throws \CiviCRM_API3_Exception Cannot get country list
+   */
   public function getCountries() {
 
     $countries = civicrm_api3('Address', 'Getoptions', [
@@ -354,6 +382,10 @@ class KAVALogin_CiviCRM {
     return $countries['values'];
   }
 
+  /**
+   * Get default country ID from CiviCRM
+   * @return int Country ID
+   */
   public function getDefaultCountry() {
     return (int) CRM_Core_Config::singleton()->defaultContactCountry;
   }

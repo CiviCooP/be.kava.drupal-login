@@ -15,6 +15,14 @@ function kavalogin_menu() {
       'page arguments'  => ['kavalogin_register_form'],
       'access callback' => 'user_is_anonymous',
     ],
+    'account/changepass'             => [
+      'title'           => 'Wachtwoord wijzigen',
+      'description'     => 'Wijzig uw wachtwoord',
+      'type'            => MENU_NORMAL_ITEM,
+      'page callback'   => 'drupal_get_form',
+      'page arguments'  => ['kavalogin_changepass_form'],
+      'access callback' => 'user_is_logged_in',
+    ],
     'admin/config/civicrm/kavalogin' => [
       'title'            => 'Instellingen KAVA-login',
       'description'      => 'Integratie met de KAVA account API en CAS-server',
@@ -51,6 +59,7 @@ function kavalogin_menu_alter(&$items) {
 }
 
 /**
+ * User registration form.
  * @param array $form Form array
  * @param array $form_state Form state array
  * @return array Form
@@ -96,16 +105,6 @@ function kavalogin_register_form($form, &$form_state) {
     '#required'      => TRUE,
   ];
 
-  $kcivicrm = KAVALogin_CiviCRM::getInstance();
-  $defaultCountry = (isset($form_state['values']['country_id']) ? $form_state['values']['country_id'] : $kcivicrm->getDefaultCountry());
-  $form['country_id'] = [
-    '#type'          => 'select',
-    '#title'         => t('Land'),
-    '#default_value' => $defaultCountry,
-    '#options'       => $kcivicrm->getCountries(),
-    '#required'      => TRUE,
-  ];
-
   $form['phone'] = [
     '#type'          => 'textfield',
     '#title'         => t('Telefoon'),
@@ -132,41 +131,29 @@ function kavalogin_register_form($form, &$form_state) {
 }
 
 /**
- * Validate user register form. Check if email address already exists
- * - and if yes, if this user already has an account.
+ * Validate user register form. Checks if a user already exists for this email address.
+ * (Update: does not check for a CiviCRM contact anymore at this point.)
  * @param array $form Form array
  * @param array $form_state Form state array
  */
 function kavalogin_register_form_validate(&$form, &$form_state) {
 
-  $kcivicrm = KAVALogin_CiviCRM::getInstance();
-
   $email = $form_state['values']['email'];
-  $contact = $kcivicrm->getCiviContactByEmail($email);
 
-  $form_state['kavalogin_action'] = ['action' => NULL];
-
-  if ($contact) {
-
-    if ($contact['kava_account_login'] || $kcivicrm->checkUFMatch($contact['contact_id'])) {
-      // Contact exists and already has a username and password
-      form_set_error('email', 'Er bestaat al een account voor deze website met dit emailadres. <a href="/user/login">U kunt hier inloggen</a>.');
-    }
-    else {
-      // Contact exists, username not set -> add CAS account after submit (see below)
-      $form_state['kavalogin_action'] = ['action' => 'account', 'contact' => $contact];
-    }
-
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    form_set_error('email', 'U hebt geen geldig e-mailadres ingevoerd.');
   }
   else {
-    // Contact does not exist -> will create new CAS account after submit (see below)
-    $form_state['kavalogin_action'] = ['action' => 'create'];
+    $account = user_load_by_mail($email);
+    if ($account) {
+      form_set_error('email', 'Er bestaat al een account voor deze website met dit emailadres. <a href="/user/login">U kunt hier inloggen</a>.');
+    }
   }
 }
 
 /**
- * Submit user registration form. Based on the action defined above, we'll create a CAS user,
- * then create a Drupal account and link it to a (new or existing) CiviCRM contact.
+ * Submit user registration form. Based on the result the KAVA Account API provides,
+ * we'll create a Drupal account and link it to a (new or existing) CiviCRM contact.
  * @param array $form Form array
  * @param array $form_state Form state array
  * @return bool Success
@@ -176,100 +163,118 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   $kaccapi = KAVALogin_AccountAPI::getInstance();
   $kcivicrm = KAVALogin_CiviCRM::getInstance();
 
-  $kaction = &$form_state['kavalogin_action'];
   $params = $form_state['values'];
   $drupalUser = NULL;
 
-  if ($kaction && $kaction['action']) {
-    switch ($kaction['action']) {
-
-      case 'account':
-        // Get a username and create an account for a contact that doesn't have one yet, but does have a barcode
-        $barcode = $kaction['contact']['barcode'];
-        if ($barcode) {
-
-          kavalogin_log('Calling account API to create an account for contact ' . $kaction['contact']['contact_id'], FALSE, WATCHDOG_INFO);
-          $result = $kaccapi->createAccountForContact($barcode);
-
-          if ($result->code == 200) {
-
-            $params['username'] = 'todocas1_' . mt_rand(100000, 999999); // TODO add CAS username from API
-            $params['contact_id'] = $kaction['contact']['contact_id'];
-
-            // Create Drupal user and link Drupal/CiviCRM if successful
-            $kcivicrm->addUpdateContact($params);
-            $drupalUser = $kcivicrm->addDrupalUser($params);
-            if ($drupalUser) {
-              $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $params['username']);
-            }
-
-          }
-          else {
-            drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersnaam. Probeer het later opnieuw.', 'error');
-            return FALSE;
-          }
-
-        }
-        else {
-
-          $kaction = ['action' => NULL];
-          kavalogin_log('Barcode not set: can\'t create a CAS contact for contact ' . $kaction['contact']['id']);
-          drupal_set_message('Er kan niet automatisch een account voor u aangemaakt worden op basis van de voor u bekende gegevens (barcode onbekend).<br />Neem contact op met KAVA om een account aan te maken.', 'error');
-          return FALSE;
-        }
-
-        break;
-
-      case 'create':
-        // Create a new CAS account, CiviCRM contact and Drupal user for a user that doesn't exist in CiviCRM yet
-
-        kavalogin_log('Calling create API to create an account for a new contact', FALSE, WATCHDOG_INFO);
-        $kaccapi = KAVALogin_AccountAPI::getInstance();
-        $result = $kaccapi->createAccount($params['email'], $params['first_name'], $params['last_name']);
-
-        if ($result->code == 200) {
-
-          $params['username'] = 'todocas2_' . mt_rand(100000, 999999); // TODO add CAS username from API
-
-          // Create Drupal user and link Drupal/CiviCRM if successful
-          $params['contact_id'] = $kcivicrm->addUpdateContact($params);
-          $drupalUser = $kcivicrm->addDrupalUser($params);
-          if ($drupalUser) {
-            $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $params['username']);
-          }
-
-        }
-        else {
-          drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersnaam. Probeer het later opnieuw.', 'error');
-          return FALSE;
-        }
-
-        break;
-
-      default:
-        kavalogin_log('Invalid action for user_register_form_submit: ' . $kaction['action'], FALSE, WATCHDOG_NOTICE);
-        drupal_set_message('Ongeldige actie gespecificeerd.', 'error');
-        break;
-    }
+  // Call API
+  $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name']);
+  if (!$result || !isset($result->login) || !isset($result->login->login)) {
+    drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersaccount. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
+    return FALSE;
   }
 
-  if (!empty($drupalUser)) {
-    // TODO send confirmation / password email
-    drupal_set_message('Uw gebruikersaccount is aangemaakt. Uw gebruikersnaam is: <strong>' . $params['username'] . '</strong>. U bent nu ingelogd op KAVA.be.', 'status');
-
-    // Log in
-    global $user;
-    $user = $drupalUser;
-    $edit = ['redirect' => '/'];
-    user_login_finalize($edit);
+  // Try to CiviCRM user by barcode or email
+  $contact = NULL;
+  if (!empty($result->barcode)) {
+    $contact = $kcivicrm->getCiviContactByBarcode($result->barcode);
   }
+  if (!$contact) {
+    $contact = $kcivicrm->getCiviContactByEmail($params['email']);
+  }
+
+  if ($contact && $kcivicrm->checkUFMatch($contact['contact_id'])) {
+    drupal_set_message('Account kan niet worden aangemaakt: er is al een account gekoppeld aan dit emailadres of deze barcode. Neem contact op met KAVA voor ondersteuning.', 'error');
+    kavalogin_log('Could not create account: contact ' . $contact['contact_id'] . ' is already linked to a Drupal account.');
+    return FALSE;
+  }
+
+  // Update existing contact if it exists, or add a new contact
+  if ($contact) {
+
+    $kcivicrm->addUpdateContact([
+      'contact_id' => $contact['contact_id'],
+      'barcode'    => isset($result->barcode) ? $result->barcode : NULL,
+      'username'   => isset($result->login->login) ? $result->login->login : NULL,
+    ]);
+  }
+  // Add new contact
   else {
-    drupal_set_message('Er kon geen gebruikersaccount voor u aangemaakt. Probeer het later opnieuw of neem contact op met KAVA voor odnersteuning.', 'error');
+
+    $params['contact_id'] = $kcivicrm->addUpdateContact(array_merge($params, [
+      'barcode'  => isset($result->barcode) ? $result->barcode : NULL,
+      'username' => isset($result->login->login) ? $result->login->login : NULL,
+    ]));
   }
 
+  // Create Drupal user
+  $drupalUser = $kcivicrm->addDrupalUser([
+    'username' => $result->login->login,
+    'email'    => $params['email'],
+  ]);
+  if (!$drupalUser) {
+    drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersaccount. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
+    return FALSE;
+  }
+
+  // Add UFMatch
+  $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $result->login->login);
+
+  // Log in and redirect
+  global $user;
+  $user = $drupalUser;
+  user_login_finalize();
+
+  drupal_set_message('Uw gebruikersaccount is aangemaakt. Uw gebruikersnaam is: <strong>' . $result->login->login . '</strong>.<br>U bent nu ingelogd op KAVA.be en ontvangt een e-mail met uw logingegevens.', 'status');
   return drupal_goto('/');
 }
 
+/**
+ * Password change form. Submits to https://login.kava.be/karapi/change
+ * @param array $form Form array
+ * @param array $form_state Form state array
+ * @return array Form
+ */
+function kavalogin_changepass_form($form, &$form_state) {
+
+  $form['#action'] = variable_get('kavalogin_apiurl') . 'change';
+
+  $form['info'] = [
+    '#markup' => '<p>U kunt hier uw wachtwoord voor KAVA.be wijzigen.</p>',
+  ];
+
+  global $user;
+  $kcivicrm = KAVALogin_CiviCRM::getInstance();
+  $form['barcode'] = [
+    '#type'          => 'hidden',
+    '#default_value' => $kcivicrm->getFieldForDrupalUser($user->uid, 'barcode'),
+    '#required'      => TRUE,
+  ];
+
+  $form['oldPassword'] = [
+    '#type'     => 'password',
+    '#title'    => t('Huidig wachtwoord'),
+    '#required' => TRUE,
+  ];
+
+  $form['newPassword'] = [
+    '#type'     => 'password',
+    '#title'    => t('Nieuw wachtwoord'),
+    '#required' => TRUE,
+  ];
+
+  $form['confirmNewPassword'] = [
+    '#type'     => 'password',
+    '#title'    => t('Nieuw wachtwoord bevestigen'),
+    '#required' => TRUE,
+  ];
+
+  $form['submit'] = [
+    '#type'  => 'submit',
+    '#value' => t('Verzenden'),
+  ];
+
+  return $form;
+}
 
 /**
  * Admin settings form for login module
@@ -286,7 +291,7 @@ function kavalogin_admin_form() {
   $form['kavalogin_apiurl'] = [
     '#type'          => 'textfield',
     '#title'         => 'API-url',
-    '#default_value' => variable_get('kavalogin_apiurl', 'http://login.kava.be/karapi/'),
+    '#default_value' => variable_get('kavalogin_apiurl', 'https://login.kava.be/karapi/'),
     '#required'      => TRUE,
   ];
 
@@ -294,13 +299,6 @@ function kavalogin_admin_form() {
     '#type'          => 'textfield',
     '#title'         => 'API-key',
     '#default_value' => variable_get('kavalogin_apikey'),
-    '#required'      => TRUE,
-  ];
-
-  $form['kavalogin_formurl'] = [
-    '#type'          => 'textfield',
-    '#title'         => 'URL van registratieformulier',
-    '#default_value' => variable_get('kavalogin_formurl', '/account/registreren'),
     '#required'      => TRUE,
   ];
 
