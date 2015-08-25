@@ -165,7 +165,7 @@ class KAVALogin_CiviCRM {
    */
   public function addUFMatch($uf_id, $contact_id, $uf_name) {
 
-    kavalogin_log('Adding UFMatch record for contact id ' . $contact_id . ' and user id ' . $uf_id . ', uf_name is ' . $uf_name);
+    kavalogin_log('Adding UFMatch record for contact id ' . $contact_id . ' and user id ' . $uf_id . ', uf_name is ' . $uf_name, false, WATCHDOG_INFO);
 
     try {
       $ret = civicrm_api3('UFMatch', 'create', [

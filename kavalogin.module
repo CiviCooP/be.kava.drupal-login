@@ -73,49 +73,49 @@ function kavalogin_register_form($form, &$form_state) {
   $form['first_name'] = [
     '#type'          => 'textfield',
     '#title'         => t('Voornaam'),
-    '#default_value' => $form_state['values']['first_name'],
+    '#default_value' => (!empty($form_state['values']['first_name']) ? $form_state['values']['first_name'] : null),
     '#required'      => TRUE,
   ];
 
   $form['last_name'] = [
     '#type'          => 'textfield',
     '#title'         => t('Achternaam'),
-    '#default_value' => $form_state['values']['last_name'],
+    '#default_value' => (!empty($form_state['values']['last_name']) ? $form_state['values']['last_name'] : null),
     '#required'      => TRUE,
   ];
 
   $form['street_address'] = [
     '#type'          => 'textfield',
     '#title'         => t('Straat en huisnummer'),
-    '#default_value' => $form_state['values']['street_address'],
+    '#default_value' => (!empty($form_state['values']['street_address']) ? $form_state['values']['street_address'] : null),
     '#required'      => TRUE,
   ];
 
   $form['postal_code'] = [
     '#type'          => 'textfield',
     '#title'         => t('Postcode'),
-    '#default_value' => $form_state['values']['postal_code'],
+    '#default_value' => (!empty($form_state['values']['postal_code']) ? $form_state['values']['postal_code'] : null),
     '#required'      => TRUE,
   ];
 
   $form['city'] = [
     '#type'          => 'textfield',
     '#title'         => t('Plaats'),
-    '#default_value' => $form_state['values']['city'],
+    '#default_value' => (!empty($form_state['values']['city']) ? $form_state['values']['city'] : null),
     '#required'      => TRUE,
   ];
 
   $form['phone'] = [
     '#type'          => 'textfield',
     '#title'         => t('Telefoon'),
-    '#default_value' => $form_state['values']['phone'],
+    '#default_value' => (!empty($form_state['values']['phone']) ? $form_state['values']['phone'] : null),
     '#required'      => TRUE,
   ];
 
   $form['email'] = [
     '#type'          => 'textfield',
     '#title'         => t('E-mailadres'),
-    '#default_value' => $form_state['values']['email'],
+    '#default_value' => (!empty($form_state['values']['email']) ? $form_state['values']['email'] : null),
     '#required'      => TRUE,
   ];
 
@@ -168,15 +168,15 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
 
   // Call API
   $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name']);
-  if (!$result || !isset($result->login) || !isset($result->login->login)) {
+  if (!$result || !isset($result->user) || !isset($result->user->login)) {
     drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersaccount. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
     return FALSE;
   }
 
   // Try to CiviCRM user by barcode or email
   $contact = NULL;
-  if (!empty($result->barcode)) {
-    $contact = $kcivicrm->getCiviContactByBarcode($result->barcode);
+  if (!empty($result->user->barcode)) {
+    $contact = $kcivicrm->getCiviContactByBarcode($result->user->barcode);
   }
   if (!$contact) {
     $contact = $kcivicrm->getCiviContactByEmail($params['email']);
@@ -193,22 +193,24 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
 
     $kcivicrm->addUpdateContact([
       'contact_id' => $contact['contact_id'],
-      'barcode'    => isset($result->barcode) ? $result->barcode : NULL,
-      'username'   => isset($result->login->login) ? $result->login->login : NULL,
+      'barcode'    => isset($result->user->barcode) ? $result->user->barcode : NULL,
+      'username'   => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]);
+    kavalogin_log('Updated existing contact: ' . $params['contact_id'] . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
   }
   // Add new contact
   else {
 
     $params['contact_id'] = $kcivicrm->addUpdateContact(array_merge($params, [
-      'barcode'  => isset($result->barcode) ? $result->barcode : NULL,
-      'username' => isset($result->login->login) ? $result->login->login : NULL,
+      'barcode'  => isset($result->user->barcode) ? $result->user->barcode : NULL,
+      'username' => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]));
+    kavalogin_log('Created new contact: ' . $params['contact_id'] . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
   }
 
   // Create Drupal user
   $drupalUser = $kcivicrm->addDrupalUser([
-    'username' => $result->login->login,
+    'username' => $result->user->login->login,
     'email'    => $params['email'],
   ]);
   if (!$drupalUser) {
@@ -217,14 +219,14 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   }
 
   // Add UFMatch
-  $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $result->login->login);
+  $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $result->user->login->login);
 
   // Log in and redirect
   global $user;
   $user = $drupalUser;
   user_login_finalize();
 
-  drupal_set_message('Uw gebruikersaccount is aangemaakt. Uw gebruikersnaam is: <strong>' . $result->login->login . '</strong>.<br>U bent nu ingelogd op KAVA.be en ontvangt een e-mail met uw logingegevens.', 'status');
+  drupal_set_message('Uw gebruikersaccount is aangemaakt. Uw gebruikersnaam is: <strong>' . $result->user->login->login . '</strong>.<br>U bent nu ingelogd op KAVA.be en ontvangt een e-mail met uw logingegevens.', 'status');
   return drupal_goto('/');
 }
 
