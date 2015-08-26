@@ -191,21 +191,22 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   // Update existing contact if it exists, or add a new contact
   if ($contact) {
 
+    $contact_id = $contact['contact_id'];
     $kcivicrm->addUpdateContact([
-      'contact_id' => $contact['contact_id'],
+      'contact_id' => $contact_id,
       'barcode'    => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username'   => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]);
-    kavalogin_log('Updated existing contact: ' . $params['contact_id'] . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
+    kavalogin_log('Updated existing contact: ' . $contact_id . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
   }
   // Add new contact
   else {
 
-    $params['contact_id'] = $kcivicrm->addUpdateContact(array_merge($params, [
+    $contact_id = $kcivicrm->addUpdateContact(array_merge($params, [
       'barcode'  => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username' => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]));
-    kavalogin_log('Created new contact: ' . $params['contact_id'] . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
+    kavalogin_log('Created new contact: ' . $contact_id . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
   }
 
   // Create Drupal user
@@ -219,7 +220,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   }
 
   // Add UFMatch
-  $kcivicrm->addUFMatch($drupalUser->uid, $params['contact_id'], $result->user->login->login);
+  $kcivicrm->addUFMatch($drupalUser->uid, $contact_id, $result->user->login->login);
 
   // Log in and redirect
   global $user;
