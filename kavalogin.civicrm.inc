@@ -165,7 +165,7 @@ class KAVALogin_CiviCRM {
    */
   public function addUFMatch($uf_id, $contact_id, $uf_name) {
 
-    kavalogin_log('Adding UFMatch record for contact id ' . $contact_id . ' and user id ' . $uf_id . ', uf_name is ' . $uf_name, false, WATCHDOG_INFO);
+    kavalogin_log('Adding UFMatch record for contact id ' . $contact_id . ' and user id ' . $uf_id . ', uf_name is ' . $uf_name, FALSE, WATCHDOG_INFO);
 
     try {
       $ret = civicrm_api3('UFMatch', 'create', [
@@ -210,9 +210,11 @@ class KAVALogin_CiviCRM {
 
     try {
 
-      $contactParams = [
-        'contact_type' => 'Individual',
-      ];
+      $contactParams = ['contact_type' => 'Individual'];
+
+      if (!empty($params['contacttype']) && $params['contacttype'] != 'none') {
+        $contactParams['contact_sub_type'] = $params['contacttype'];
+      }
 
       foreach (['contact_id', 'first_name', 'last_name'] as $contactField) {
         if (!empty($params[$contactField])) {

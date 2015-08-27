@@ -51,6 +51,19 @@ function kavalogin_user_insert(&$edit, $account, $category) {
 }
 
 /**
+ * User login hook. Runs after CAS, but before CiviCRM.
+ * If an existing user just logged on via CAS, we'll try to match the account to a contact record.
+ * @param array $edit User attributes
+ * @param object $account Drupal user object
+ * @return bool Success
+ */
+function kavalogin_user_login(&$edit, $account) {
+
+  $kcivicrm = KAVALogin_CiviCRM::getInstance();
+  return $kcivicrm->match($account);
+}
+
+/**
  * Disallow access to the default password reset page, so the link is not shown.
  * @param array $items Existing menu items
  */
@@ -73,49 +86,61 @@ function kavalogin_register_form($form, &$form_state) {
   $form['first_name'] = [
     '#type'          => 'textfield',
     '#title'         => t('Voornaam'),
-    '#default_value' => (!empty($form_state['values']['first_name']) ? $form_state['values']['first_name'] : null),
+    '#default_value' => (!empty($form_state['values']['first_name']) ? $form_state['values']['first_name'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['last_name'] = [
     '#type'          => 'textfield',
     '#title'         => t('Achternaam'),
-    '#default_value' => (!empty($form_state['values']['last_name']) ? $form_state['values']['last_name'] : null),
+    '#default_value' => (!empty($form_state['values']['last_name']) ? $form_state['values']['last_name'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['street_address'] = [
     '#type'          => 'textfield',
     '#title'         => t('Straat en huisnummer'),
-    '#default_value' => (!empty($form_state['values']['street_address']) ? $form_state['values']['street_address'] : null),
+    '#default_value' => (!empty($form_state['values']['street_address']) ? $form_state['values']['street_address'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['postal_code'] = [
     '#type'          => 'textfield',
     '#title'         => t('Postcode'),
-    '#default_value' => (!empty($form_state['values']['postal_code']) ? $form_state['values']['postal_code'] : null),
+    '#default_value' => (!empty($form_state['values']['postal_code']) ? $form_state['values']['postal_code'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['city'] = [
     '#type'          => 'textfield',
     '#title'         => t('Plaats'),
-    '#default_value' => (!empty($form_state['values']['city']) ? $form_state['values']['city'] : null),
+    '#default_value' => (!empty($form_state['values']['city']) ? $form_state['values']['city'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['phone'] = [
     '#type'          => 'textfield',
     '#title'         => t('Telefoon'),
-    '#default_value' => (!empty($form_state['values']['phone']) ? $form_state['values']['phone'] : null),
+    '#default_value' => (!empty($form_state['values']['phone']) ? $form_state['values']['phone'] : NULL),
     '#required'      => TRUE,
   ];
 
   $form['email'] = [
     '#type'          => 'textfield',
     '#title'         => t('E-mailadres'),
-    '#default_value' => (!empty($form_state['values']['email']) ? $form_state['values']['email'] : null),
+    '#default_value' => (!empty($form_state['values']['email']) ? $form_state['values']['email'] : NULL),
+    '#required'      => TRUE,
+  ];
+
+  $form['contacttype'] = [
+    '#type'          => 'radios',
+    '#title'         => t('Ik ben een'),
+    '#default_value' => (!empty($form_state['values']['contacttype']) ? $form_state['values']['contacttype'] : NULL),
+    '#options'       => [
+      'apotheekassistent' => 'Assistent',
+      'apotheker'         => 'Apotheker',
+      'none'              => 'Anders',
+    ],
     '#required'      => TRUE,
   ];
 
@@ -197,7 +222,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
       'barcode'    => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username'   => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]);
-    kavalogin_log('Updated existing contact: ' . $contact_id . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
+    kavalogin_log('Updated existing contact: ' . $contact_id . '. API reports method ' . $result->method . '.', FALSE, WATCHDOG_INFO);
   }
   // Add new contact
   else {
@@ -206,7 +231,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
       'barcode'  => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username' => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]));
-    kavalogin_log('Created new contact: ' . $contact_id . '. API reports method ' . $result->method . '.', false, WATCHDOG_INFO);
+    kavalogin_log('Created new contact: ' . $contact_id . '. API reports method ' . $result->method . '.', FALSE, WATCHDOG_INFO);
   }
 
   // Create Drupal user
