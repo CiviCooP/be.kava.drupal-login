@@ -80,7 +80,7 @@ function kavalogin_menu_alter(&$items) {
 function kavalogin_register_form($form, &$form_state) {
 
   $form['info'] = [
-    '#markup' => '<p>Als u nog geen logingegevens hebt voor KAVA.be, kunt u hier een account aanmaken.<br>Hebt u al wel een account, <a href="/user/login">klik dan hier om in te loggen</a>.</p>',
+    '#markup' => '<p>Als u nog geen logingegevens hebt voor KAVA.be, kunt u hier een account aanmaken.<br>Hebt u al wel een account, meld u dan rechts bovenaan de pagina aan.</p>',
   ];
 
   $form['first_name'] = [
@@ -96,7 +96,7 @@ function kavalogin_register_form($form, &$form_state) {
     '#default_value' => (!empty($form_state['values']['last_name']) ? $form_state['values']['last_name'] : NULL),
     '#required'      => TRUE,
   ];
-
+/*
   $form['street_address'] = [
     '#type'          => 'textfield',
     '#title'         => t('Straat en huisnummer'),
@@ -117,12 +117,13 @@ function kavalogin_register_form($form, &$form_state) {
     '#default_value' => (!empty($form_state['values']['city']) ? $form_state['values']['city'] : NULL),
     '#required'      => TRUE,
   ];
+ */
 
   $form['phone'] = [
     '#type'          => 'textfield',
     '#title'         => t('Telefoon'),
     '#default_value' => (!empty($form_state['values']['phone']) ? $form_state['values']['phone'] : NULL),
-    '#required'      => TRUE,
+    '#required'      => FALSE,
   ];
 
   $form['email'] = [
@@ -134,12 +135,14 @@ function kavalogin_register_form($form, &$form_state) {
 
   $form['contacttype'] = [
     '#type'          => 'radios',
-    '#title'         => t('Ik ben een'),
+    '#title'         => t('Ik ben'),
     '#default_value' => (!empty($form_state['values']['contacttype']) ? $form_state['values']['contacttype'] : NULL),
     '#options'       => [
-      'apotheekassistent' => 'Assistent',
       'apotheker'         => 'Apotheker',
-      'none'              => 'Anders',
+      'stagiair'         => 'Stagiair-apotheker',
+	  'apotheekassistent' => 'Farmaceutisch Technisch Assistent',
+      'arts'         	  => 'Arts',
+      'none'              => 'Andere',
     ],
     '#required'      => TRUE,
   ];
@@ -192,7 +195,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   $drupalUser = NULL;
 
   // Call API
-  $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name']);
+  $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name'], $params['phone'], $params['contacttype']);
   if (!$result || !isset($result->user) || !isset($result->user->login)) {
     drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersaccount. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
     return FALSE;
@@ -267,7 +270,8 @@ function kavalogin_changepass_form($form, &$form_state) {
   $form['#action'] = variable_get('kavalogin_apiurl') . 'change';
 
   $form['info'] = [
-    '#markup' => '<p>U kunt hier uw wachtwoord voor KAVA.be wijzigen.</p>',
+    '#markup' => '<p>U bent ingelogd met uw <strong>persoonlijke account</strong>.<br/><br/>
+	Met deze account logt u in op de homepage van KAVA. Hiermee kan u de tariferingberichten, TD-documenten, artikels uit de bibliotheek etc. lezen en u inschrijven voor een evenement in onze agenda. U gebruikt uw persoonlijke account ook nog steeds om uw Digitaal Dossier te raadplegen.<br/><br/><a href="https://www.kava.be/news/persoonlijke-account-apotheekaccount" target="_blank">Klik hier voor meer informatie over het gebruik van uw persoonlijke account of apotheekaccount.</a><br/><br/>Via het onderstaande formulier kan u het wachtwoord wijzigen van uw persoonlijke account.</p>',
   ];
 
   global $user;
@@ -280,25 +284,25 @@ function kavalogin_changepass_form($form, &$form_state) {
 
   $form['oldPassword'] = [
     '#type'     => 'password',
-    '#title'    => t('Huidig wachtwoord'),
+    '#title'    => t('Huidig wachtwoord persoonlijke account'),
     '#required' => TRUE,
   ];
 
   $form['newPassword'] = [
     '#type'     => 'password',
-    '#title'    => t('Nieuw wachtwoord'),
+    '#title'    => t('Gewenst wachtwoord persoonlijke account'),
     '#required' => TRUE,
   ];
 
   $form['confirmNewPassword'] = [
     '#type'     => 'password',
-    '#title'    => t('Nieuw wachtwoord bevestigen'),
+    '#title'    => t('Bevestig gewenst wachtwoord persoonlijke account'),
     '#required' => TRUE,
   ];
 
   $form['submit'] = [
     '#type'  => 'submit',
-    '#value' => t('Verzenden'),
+    '#value' => t('Wijzig wachtwoord voor mijn persoonlijke account'),
   ];
 
   return $form;
