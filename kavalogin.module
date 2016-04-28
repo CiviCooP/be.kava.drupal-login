@@ -80,7 +80,7 @@ function kavalogin_menu_alter(&$items) {
 function kavalogin_register_form($form, &$form_state) {
 
   $form['info'] = [
-    '#markup' => '<p>Als u nog geen logingegevens hebt voor KAVA.be, kunt u hier een account aanmaken.<br>Hebt u al wel een account, meld u dan rechts bovenaan de pagina aan.</p>',
+    '#markup' => '<p>Als u nog geen logingegevens hebt voor KAVA.be, kunt u hier een account aanmaken. Wij vragen uw adres om u zo volledig mogelijk te kunnen identificeren.<br>Hebt u al wel een account, meld u dan rechts bovenaan de pagina aan.</p>',
   ];
 
   $form['first_name'] = [
@@ -96,11 +96,16 @@ function kavalogin_register_form($form, &$form_state) {
     '#default_value' => (!empty($form_state['values']['last_name']) ? $form_state['values']['last_name'] : NULL),
     '#required'      => TRUE,
   ];
-/*
-  $form['street_address'] = [
+  $form['street_name'] = [
     '#type'          => 'textfield',
-    '#title'         => t('Straat en huisnummer'),
-    '#default_value' => (!empty($form_state['values']['street_address']) ? $form_state['values']['street_address'] : NULL),
+    '#title'         => t('Straatnaam'),
+    '#default_value' => (!empty($form_state['values']['street_name']) ? $form_state['values']['street_name'] : NULL),
+    '#required'      => TRUE,
+  ];
+  $form['street_number'] = [
+    '#type'          => 'textfield',
+    '#title'         => t('Huisnummer'),
+    '#default_value' => (!empty($form_state['values']['street_number']) ? $form_state['values']['street_number'] : NULL),
     '#required'      => TRUE,
   ];
 
@@ -117,7 +122,6 @@ function kavalogin_register_form($form, &$form_state) {
     '#default_value' => (!empty($form_state['values']['city']) ? $form_state['values']['city'] : NULL),
     '#required'      => TRUE,
   ];
- */
 
   $form['phone'] = [
     '#type'          => 'textfield',
@@ -195,7 +199,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   $drupalUser = NULL;
 
   // Call API
-  $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name'], $params['phone'], $params['contacttype']);
+  $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name'], $params['street_name'], $params['street_number'], $params['postal_code'], $params['city'], $params['phone'], $params['contacttype']);
   if (!$result || !isset($result->user) || !isset($result->user->login)) {
     drupal_set_message('Er is een fout opgetreden bij het aanmaken van een gebruikersaccount. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
     return FALSE;
@@ -229,7 +233,6 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   }
   // Add new contact
   else {
-
     $contact_id = $kcivicrm->addUpdateContact(array_merge($params, [
       'barcode'  => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username' => isset($result->user->login->login) ? $result->user->login->login : NULL,
