@@ -80,7 +80,7 @@ function kavalogin_menu_alter(&$items) {
 function kavalogin_register_form($form, &$form_state) {
 
   $form['info'] = [
-    '#markup' => '<p>Registreren is enkel nodig als u nog geen login hebt voor de kava website. Op basis van onderstaande gegevens wordt een account aangemaakt waarmee u zich kan inschrijven voor bepaalde activiteiten of initiatieven. Heeft u al een account, dan kan u zich aanmelden via de knop "inloggen" rechts bovenaan. Daar kan u ook terecht wanneer u uw wachtwoord vergeten bent</p>',
+    '#markup' => '<p>Registreren is enkel nodig als u nog geen login hebt voor de KAVA-website. Op basis van onderstaande gegevens wordt een account aangemaakt waarmee u zich kan inschrijven voor bepaalde activiteiten of initiatieven. Heeft u al een account, dan kan u zich aanmelden via de knop "inloggen" rechts bovenaan. Daar kan u ook terecht wanneer u uw wachtwoord vergeten bent.</p>',
   ];
 
   $form['first_name'] = [
