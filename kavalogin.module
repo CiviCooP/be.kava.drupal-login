@@ -80,7 +80,7 @@ function kavalogin_menu_alter(&$items) {
 function kavalogin_register_form($form, &$form_state) {
 
   $form['info'] = [
-    '#markup' => '<p>Als u nog geen logingegevens hebt voor KAVA.be, kunt u hier een account aanmaken. Wij vragen uw adres om u zo volledig mogelijk te kunnen identificeren.<br>Hebt u al wel een account, meld u dan rechts bovenaan de pagina aan.</p>',
+    '#markup' => '<p>Registreren is enkel nodig als u nog geen login hebt voor de KAVA-website. Op basis van onderstaande gegevens wordt een account aangemaakt waarmee u zich kan inschrijven voor bepaalde activiteiten of initiatieven. Heeft u al een account, dan kan u zich aanmelden via de knop "inloggen" rechts bovenaan. Daar kan u ook terecht wanneer u uw wachtwoord vergeten bent.</p>',
   ];
 
   $form['first_name'] = [
@@ -205,7 +205,7 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
     return FALSE;
   }
 
-  // Try to CiviCRM user by barcode or email
+  // Try to get CiviCRM user by barcode or email
   $contact = NULL;
   if (!empty($result->user->barcode)) {
     $contact = $kcivicrm->getCiviContactByBarcode($result->user->barcode);
@@ -237,7 +237,13 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
       'barcode'  => isset($result->user->barcode) ? $result->user->barcode : NULL,
       'username' => isset($result->user->login->login) ? $result->user->login->login : NULL,
     ]));
+
     kavalogin_log('Created new contact: ' . $contact_id . '. API reports method ' . $result->method . '.', FALSE, WATCHDOG_INFO);
+
+    if(!$contact_id) {
+      drupal_set_message('Er is een fout opgetreden bij het aanmaken van een contact. Probeer het later opnieuw of neem contact op met KAVA voor ondersteuning.', 'error');
+      return FALSE;
+    }
   }
 
   // Create Drupal user
