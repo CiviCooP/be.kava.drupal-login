@@ -198,6 +198,11 @@ function kavalogin_register_form_submit(&$form, &$form_state) {
   $params = $form_state['values'];
   $drupalUser = NULL;
 
+  // Change 20180130: stagairs -> apothekers
+  if($params['contacttype'] == 'stagiair') {
+    $params['contacttype'] = 'apotheker';
+  }
+
   // Call API
   $result = $kaccapi->callAccountAPI($params['email'], $params['first_name'], $params['last_name'], $params['street_name'], $params['street_number'], $params['postal_code'], $params['city'], $params['phone'], $params['contacttype']);
   if (!$result || !isset($result->user) || !isset($result->user->login)) {
