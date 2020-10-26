@@ -33,6 +33,7 @@ class KAVALogin_CiviCRM {
    * @return bool Success
    */
   public function match($account) {
+    kavalogin_log('Attempting to match account ' . $account->uid, FALSE, WATCHDOG_INFO);
 
     $match = $this->getUFMatch($account->uid);
     if ($match) {
@@ -107,6 +108,7 @@ class KAVALogin_CiviCRM {
    * @return array|bool Contact | false
    */
   private function getCiviContact($searchField, $searchValue, $extraFields = TRUE) {
+    kavalogin_log('Trying to find CiviCRM contact by ' . $searchField . ': ' . $searchValue, FALSE, WATCHDOG_INFO);
     try {
       if ($extraFields) {
         $customFields = [
