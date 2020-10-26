@@ -200,7 +200,7 @@ class KAVALogin_CiviCRM {
   /**
    * Add (or update) contact record
    * @param array $params Parameters.
-   * (Allowed params: contact_id, first_name, last_name, street_address, postal_code, city, country_id, phone, email, username, barcode)
+   * (Allowed params: contact_id, first_name, last_name, street_name, street_number, postal_code, city, country_id, phone, email, username, barcode)
    * @return bool Success
    * @throws \CiviCRM_API3_Exception Exception
    */
@@ -231,11 +231,11 @@ class KAVALogin_CiviCRM {
         $contactParams[$barcodeFieldName] = $params['barcode'];
       }
 
-      if (!empty($params['street_address'])) {
+      if (!empty($params['street_name'])) {
         $contactParams['api.address.create'] = [
           'location_type_id' => 3,
           'is_primary'       => 1,
-          'street_address'   => $params['street_address'],
+          'street_address'   => $params['street_name']." ".$params['street_number'],
           'postal_code'      => $params['postal_code'],
           'city'             => $params['city'],
           'country_id'       => (!empty($params['country_id']) ? $params['country_id'] : $this->getDefaultCountry()),

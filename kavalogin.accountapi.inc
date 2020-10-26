@@ -25,18 +25,28 @@ class KAVALogin_AccountAPI {
    * @param string $email Email Address
    * @param string $firstName First Name
    * @param string $lastName Last Name
+   * @param string $streetName Street Name
+   * @param string $streetNumber Street Number
+   * @param string $postalCode Postal Code
+   * @param string $city City
    * @param string $phone Phone Number
    * @param string $contactType Contact Type
    * @return mixed|bool Result or success
    */
-  public function callAccountAPI($email, $firstName = '', $lastName = '', $phone = '', $contactType = '') {
+  public function callAccountAPI($email, $firstName = '', $lastName = '', $streetName = '', $streetNumber = '', $postalCode = '', $city = '', $phone = '', $contactType = '') {
 
     $apiUrl = $this->getApiUrl('create', [
-      'email'    => $email,
-      'naam'     => strtoupper($lastName),
-      'voornaam' => strtoupper($firstName),
-	  'phone' => $phone,
-	  'contacttype' => $contactType
+      'email' => $email,
+#      'naam'     => strtoupper($lastName),
+#      'voornaam' => strtoupper($firstName),
+      'naam' => $lastName,
+      'voornaam' => $firstName,
+      'streetname' => $streetName,
+      'streetnumber' => $streetNumber,
+      'postalcode' => $postalCode,
+      'city' => $city,
+      'phone' => $phone,
+      'contacttype' => $contactType
     ]);
 
     $ret = drupal_http_request($apiUrl);
